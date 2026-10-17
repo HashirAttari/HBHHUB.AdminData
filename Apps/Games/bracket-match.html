@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bracket Match Game</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:var(--font-body)}
+body{background:hsl(var(--background));color:hsl(var(--foreground))}
+button{font:inherit;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.game{min-height:100svh;display:grid;place-items:center;padding:16px;background:hsl(var(--background));color:hsl(var(--foreground))}
+.wrap{width:min(100%,640px)}
+.title{text-align:center;font-size:clamp(1.5rem,6vw,2.4rem);line-height:1.1;margin:0 0 18px;font-weight:800}
+.pulse{display:inline-block;animation:pulse 1.5s ease-in-out infinite}
+.levels{display:flex;justify-content:center;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+.level{min-height:40px;padding:7px 14px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--secondary));color:hsl(var(--secondary-foreground));cursor:pointer;font-weight:700;text-transform:capitalize}
+.level:hover{background:hsl(var(--accent));color:hsl(var(--accent-foreground))}
+.level.active{background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:hsl(var(--primary))}
+.info{display:flex;gap:8px;margin-bottom:9px}
+.reset{width:50px;min-width:50px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--card));color:hsl(var(--card-foreground));cursor:pointer}
+.reset:hover{background:hsl(var(--accent));color:hsl(var(--accent-foreground))}
+.stats{flex:1;display:flex;align-items:center;justify-content:center;gap:clamp(18px,9vw,45px);border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--card));color:hsl(var(--card-foreground));font-weight:800}
+.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(6px,2.4vw,13px);padding:clamp(10px,4vw,22px);border:1px solid hsl(var(--border));border-radius:calc(var(--radius)*1.5);background:hsl(var(--card));box-shadow:0 12px 35px hsl(var(--foreground)/.08)}
+.tile{aspect-ratio:1;min-width:0;border:2px solid transparent;border-radius:var(--radius);background:hsl(var(--primary));color:hsl(var(--primary-foreground));font-size:clamp(1.05rem,5vw,1.7rem);font-weight:800;cursor:pointer;touch-action:manipulation;transition:transform .14s,background-color .18s,border-color .18s,box-shadow .18s}
+.tile:hover:not(:disabled){transform:scale(1.035)}
+.tile:active:not(:disabled){transform:scale(.94)}
+.tile.selected{background:hsl(var(--accent));color:hsl(var(--accent-foreground));border-color:hsl(var(--ring));box-shadow:0 0 0 3px hsl(var(--ring)/.14)}
+.tile.matched{background:hsl(var(--success));color:hsl(var(--primary-foreground));border-color:hsl(var(--success));box-shadow:0 0 0 3px hsl(var(--success)/.14);cursor:default}
+.tile.wrong{background:hsl(var(--destructive));color:hsl(var(--destructive-foreground));border-color:hsl(var(--destructive));box-shadow:0 0 0 3px hsl(var(--destructive)/.14);cursor:default}
+.tile:disabled{cursor:default}
+.controls{text-align:center;margin-top:16px}
+.start,.restart{min-height:44px;padding:9px 22px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--primary));color:hsl(var(--primary-foreground));cursor:pointer;font-weight:800}
+.start:hover,.restart:hover{filter:brightness(1.06)}
+.start:active,.restart:active{transform:scale(.96)}
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:hsl(var(--foreground)/.72);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.overlay.hide{display:none}
+.result{width:min(100%,420px);padding:clamp(26px,7vw,40px) 24px;text-align:center;border:1px solid hsl(var(--border));border-radius:calc(var(--radius)*2);background:hsl(var(--card));color:hsl(var(--card-foreground));box-shadow:0 25px 70px hsl(var(--foreground)/.25)}
+.result-icon{font-size:clamp(3rem,15vw,5rem);line-height:1}
+.result h2{margin:14px 0 8px;font-size:clamp(2rem,9vw,3rem);line-height:1}
+.result p{margin:0;color:hsl(var(--muted-foreground));line-height:1.5}
+.restart{margin-top:22px}
+.confetti{position:fixed;top:-14px;width:8px;height:12px;z-index:30;pointer-events:none;border-radius:2px;animation:fall linear forwards}
+@keyframes pulse{50%{transform:scale(1.12)}}
+@keyframes fall{to{transform:translate3d(var(--x),105vh,0) rotate(var(--r));opacity:0}}
+@media(max-width:400px){.level{padding-inline:10px;font-size:.88rem}.board{gap:6px;padding:9px}.stats{gap:13px;font-size:.88rem}}
+@media(max-width:330px){.board{gap:4px;padding:7px}.tile{border-radius:6px;font-size:1rem}.level{padding-inline:8px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<main class="game">
+<div class="wrap">
+<h1 class="title"><span class="pulse">🎮</span> Bracket Match Game</h1>
+<div class="levels" id="levels"></div>
+<div class="info">
+<button class="reset" id="reset" type="button">🔄</button>
+<div class="stats">
+<span>⏱ <b id="time"></b></span>
+<span>🏀 <b id="score"></b></span>
+</div>
+</div>
+<div class="board" id="board"></div>
+<div class="controls">
+<button class="start" id="start" type="button"></button>
+</div>
+</div>
+
+<div class="overlay hide" id="overlay">
+<div class="result">
+<div class="result-icon" id="resultIcon"></div>
+<h2 id="resultTitle"></h2>
+<p id="resultText"></p>
+<button class="restart" id="restart" type="button">🔄 Restart</button>
+</div>
+</div>
+</main>
+
+<script>
+(()=>{"use strict";
+
+const $=id=>document.getElementById(id);
+const TOTAL=10;
+const SYMBOLS=["{}","<>","[]","()"];
+const LEVELS={simple:[60,1],easy:[50,2],medium:[40,3],hard:[30,4]};
+
+const E={
+  levels:$("levels"),
+  board:$("board"),
+  time:$("time"),
+  score:$("score"),
+  start:$("start"),
+  reset:$("reset"),
+  overlay:$("overlay"),
+  icon:$("resultIcon"),
+  title:$("resultTitle"),
+  text:$("resultText"),
+  restart:$("restart")
+};
+
+let level="simple";
+let cards=[];
+let selected=[];
+let score=0;
+let time=0;
+let timer=null;
+let finished=false;
+let resolving=false;
+
+const shuffle=a=>{
+  a=[...a];
+  for(let i=a.length-1;i;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+};
+
+const createBoard=()=>{
+  const count=LEVELS[level][1];
+  const symbols=shuffle(SYMBOLS).slice(0,count);
+  const board=[];
+
+  symbols.forEach((pair,i)=>{
+    let n=Math.floor(TOTAL/count)+(i<TOTAL%count);
+
+    while(n--){
+      board.push(
+        {
+          id:crypto.randomUUID(),
+          char:pair[0],
+          pair,
+          state:"normal",
+          locked:false
+        },
+        {
+          id:crypto.randomUUID(),
+          char:pair[1],
+          pair,
+          state:"normal",
+          locked:false
+        }
+      );
+    }
+  });
+
+  return shuffle(board);
+};
+
+const render=()=>{
+  E.levels.innerHTML=Object.keys(LEVELS).map(x=>`
+    <button class="level ${x===level?"active":""}" data-level="${x}">
+      ${x}
+    </button>
+  `).join("");
+
+  E.time.textContent=`${time}s`;
+  E.score.textContent=score;
+  E.start.textContent=timer?"⏸ Pause":"▶️ Start";
+
+  E.board.innerHTML=cards.map(c=>`
+    <button
+      class="tile ${c.state}"
+      data-id="${c.id}"
+      ${!timer||finished||resolving||c.locked?"disabled":""}
+    >${c.char}</button>
+  `).join("");
+};
+
+const stop=()=>{
+  if(timer){
+    clearInterval(timer);
+    timer=null;
+  }
+};
+
+const finish=win=>{
+  if(finished)return;
+
+  stop();
+  finished=true;
+
+  E.icon.textContent=win?"🏆":"⏹";
+  E.title.textContent=win?"You Win!":"Game Over!";
+  E.text.textContent=win
+    ?`All ${TOTAL} pairs matched!`
+    :`You matched ${score}/${TOTAL} pairs.`;
+
+  E.overlay.classList.remove("hide");
+  render();
+
+  if(win)confetti();
+};
+
+const reset=()=>{
+  stop();
+  cards=createBoard();
+  selected=[];
+  score=0;
+  time=LEVELS[level][0];
+  finished=false;
+  resolving=false;
+  E.overlay.classList.add("hide");
+  clearConfetti();
+  render();
+};
+
+const checkBoardEnd=()=>{
+  if(score===TOTAL){
+    finish(true);
+    return true;
+  }
+
+  if(cards.every(card=>card.locked)){
+    finish(false);
+    return true;
+  }
+
+  return false;
+};
+
+const toggleTimer=()=>{
+  if(finished)return;
+
+  if(timer){
+    stop();
+  }else{
+    timer=setInterval(()=>{
+      time--;
+
+      if(time<=0){
+        time=0;
+        finish(false);
+      }else{
+        render();
+      }
+    },1000);
+  }
+
+  render();
+};
+
+const selectCard=id=>{
+  if(!timer||finished||resolving)return;
+
+  const card=cards.find(c=>c.id===id);
+
+  if(!card||card.locked)return;
+
+  card.state="selected";
+  selected.push(card);
+  render();
+
+  if(selected.length!==2)return;
+
+  const [a,b]=selected;
+  const match=a.pair===b.pair;
+
+  a.locked=true;
+  b.locked=true;
+
+  a.state=match?"matched":"wrong";
+  b.state=match?"matched":"wrong";
+
+  if(match)score++;
+
+  resolving=true;
+  render();
+
+  setTimeout(()=>{
+    selected=[];
+    resolving=false;
+
+    if(!checkBoardEnd())render();
+  },450);
+};
+
+const confetti=()=>{
+  const colors=[
+    "hsl(var(--primary))",
+    "hsl(var(--success))",
+    "hsl(var(--accent))",
+    "hsl(var(--destructive))"
+  ];
+
+  const fragment=document.createDocumentFragment();
+
+  for(let i=0;i<90;i++){
+    const x=document.createElement("i");
+
+    x.className="confetti";
+    x.style.cssText=`
+      left:${Math.random()*100}%;
+      background:${colors[Math.random()*colors.length|0]};
+      --x:${Math.random()*220-110}vw;
+      --r:${Math.random()*1440-720}deg;
+      animation-duration:${1.5+Math.random()*1.5}s
+    `;
+
+    fragment.appendChild(x);
+  }
+
+  document.body.appendChild(fragment);
+  setTimeout(clearConfetti,3300);
+};
+
+const clearConfetti=()=>{
+  document.querySelectorAll(".confetti").forEach(x=>x.remove());
+};
+
+E.levels.onclick=e=>{
+  const value=e.target.dataset.level;
+
+  if(value){
+    level=value;
+    reset();
+  }
+};
+
+E.board.onclick=e=>{
+  const id=e.target.dataset.id;
+
+  if(id)selectCard(id);
+};
+
+E.start.onclick=toggleTimer;
+E.reset.onclick=reset;
+E.restart.onclick=reset;
+
+reset();
+
+})();
+</script>
+</body>
+</html>
