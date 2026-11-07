@@ -6,6 +6,7 @@ module.exports = {
     midnight: { icon: '🌌' }, monochrome: { icon: '⚫' }, cyberpunk: { icon: '🤖' },
     amber: { icon: '🟠' }, coffee: { icon: '☕' }, nord: { icon: '❄️' }, catppuccin: { icon: '🐱' },
     slate: { icon: '🪨' }, lavender: { icon: '💜' }, emerald: { icon: '💚' }, 'tokyo-night': { icon: '🌃' },
+    brutalist: { icon: '🏗️' }, bioluminescence: { name: "BioLumineScence", icon: '🧬' },
   }, Default: 'youtube',
   ThemeModes: {
     Modes: {
