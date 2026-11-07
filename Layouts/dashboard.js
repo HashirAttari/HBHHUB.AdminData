@@ -1,5 +1,5 @@
 module.exports = (props) => {
-  const Layout = { siteName: "HBH-Dashboard.V4", SiteNameConfig: { icon: "📊" } };
+  const Layout = { siteName: "Dashboard", SiteNameConfig: { icon: "📊" } };
   const Sidebar = ((LucideIcons, { websiteBase } = {}) => {
     return [{
       items: [
